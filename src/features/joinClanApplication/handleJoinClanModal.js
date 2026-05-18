@@ -5,6 +5,7 @@ const {
     ButtonStyle
 } = require('discord.js');
 const { fetchPlayerData, normalizePlayerTag } = require('./fetchPlayerData');
+const syncDiscordUsernameForPlayerTag = require('./syncDiscordUsernameForPlayerTag');
 const appConfig = require('../../config/appConfig');
 
 module.exports = async function handleJoinClanModal(interaction) {
@@ -19,6 +20,11 @@ module.exports = async function handleJoinClanModal(interaction) {
 
         const normalizedTag = normalizePlayerTag(rawPlayerTag);
         const playerData = await fetchPlayerData(normalizedTag);
+
+        void syncDiscordUsernameForPlayerTag(
+            playerData.tag || normalizedTag,
+            interaction.user.username
+        );
 
         const { colors, application, recommendationMenu, prompt } = appConfig.joinClan;
         const fields = application.fields;

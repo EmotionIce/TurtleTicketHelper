@@ -29,12 +29,16 @@ Before setting up the bot, make sure you have:
 Create a `.env` file in the project root:
 
 ```env
-DISCORD_BOT_TOKEN=your_discord_bot_token_here
+DISCORD_TOKEN=your_discord_bot_token_here
 OPEN_TICKET_CATEGORY_ID=your_open_ticket_category_id_here
 CLOSED_TICKET_CATEGORY_ID=your_closed_ticket_category_id_here
 TICKET_TOOL_BOT_ID=your_ticket_tool_bot_id_here
-CLASH_OF_CLANS_API_KEY=your_clash_of_clans_api_key_here
+COC_API_TOKEN=your_clash_of_clans_api_key_here
+ROSTER_BACKEND_URL=your_roster_backend_url_here
+ROSTER_BOT_SECRET=your_roster_bot_secret_here
 ```
+
+`ROSTER_BACKEND_URL` and `ROSTER_BOT_SECRET` enable best-effort Discord username sync after a join clan modal passes Clash player validation. If either is missing, the bot skips that sync and continues the normal application flow.
 
 ## Discord Setup
 
@@ -90,7 +94,7 @@ Open the [Discord Developer Portal](https://discord.com/developers/applications)
 
 Add it to:
 
-- `DISCORD_BOT_TOKEN`
+- `DISCORD_TOKEN`
 
 ### 2. Enable intents
 
@@ -122,7 +126,7 @@ The important part is that the bot can read ticket channels, rename channels, an
 
 Create a Clash of Clans API key and add it to:
 
-- `CLASH_OF_CLANS_API_KEY`
+- `COC_API_TOKEN`
 
 This key is used to fetch player data for the join clan application flow.
 
@@ -153,6 +157,8 @@ If everything is configured correctly, the bot should log in and begin reacting 
 - Closed ticket category ID added to `.env`
 - Ticket Tool bot ID added to `.env`
 - Clash of Clans API key added to `.env`
+- Roster backend URL added to `.env` if Discord username sync is enabled
+- Roster bot secret added to `.env` if Discord username sync is enabled
 - Server Members Intent enabled
 - Message Content Intent enabled
 - Ticket Tool configured with both categories
