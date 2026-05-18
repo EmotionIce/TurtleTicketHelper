@@ -3,7 +3,7 @@ const {
     ROSTER_BOT_SECRET
 } = require('../../config/env');
 
-const SYNC_TIMEOUT_MS = 5_000;
+const SYNC_TIMEOUT_MS = 60_000;
 
 function warnSync(message, playerTag, discordUsername) {
     console.warn(message, {
