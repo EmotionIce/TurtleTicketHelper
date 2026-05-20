@@ -1,7 +1,11 @@
 const appConfig = {
     // Roles that are allowed to use staff-only features
     staffRoleIds: [
-        '1503440082336743558'
+        '1444000343431053332', // leader
+        '1444000229576671303', // co-leader
+        '1456074413412716780', // apprentice-leader
+        '1456069556434108483', // recruiter
+        '1503440082336743558'  // test (Scarion DC)
         // Add more staff role IDs here, separated by commas
     ],
 
@@ -24,18 +28,29 @@ const appConfig = {
         defaultTicketType: 'ticket',
 
         // If detected, this ticket type will trigger the join clan prompt
-        joinClanTicketType: 'join-clan'
+        joinClanTicketType: 'join-clan',
+
+        // Mapping of Ticket Tool topic texts to internal ticket type names
+        topicMappings: {
+            'new member': 'join-clan',
+            'general support': 'general-support',
+            'partnership': 'partnership',
+            'claim reward': 'claim-reward'
+        }
     },
 
-    // Settings used when a ticket gets closed and renamed
+    // Settings used when a ticket gets closed and auto-deleted
     ticketRename: {
         // Text that must appear in the Ticket Tool close message
         closeTriggerText: 'Ticket Closed by',
 
-        // Prefix for renamed closed channels
+        // Prefix used by Ticket Tool for closed channels
         closedNamePrefix: 'closed-',
 
+        // Warning message sent before auto-delete
         deleteWarningMessage: 'Ticket closed. This channel will be deleted in 10 seconds.',
+
+        // Audit-log reason for deleting a closed ticket
         deleteReason: 'Auto-delete closed ticket channel'
     },
 
@@ -48,11 +63,11 @@ const appConfig = {
         },
 
         prompt: {
-            title: 'Join Clan Application',
+            title: 'Introduce Yourself',
             description:
-                'Click the button below to answer 3 short questions.\n' +
-                'Your answers will be collected and posted in a clean format for the supporters.',
-            startButtonLabel: 'Start Application'
+                'Click the button below to answer the questions about your main account and region.\n' +
+                'Your Player Tag can be found by clicking the Profile Icon ingame.',
+            startButtonLabel: 'Start Introduction'
         },
 
         recommendationMenu: {
@@ -66,13 +81,13 @@ const appConfig = {
         },
 
         modal: {
-            title: 'Join Clan Questions',
+            title: 'Main Account',
             playerTagLabel: 'What is your Player Tag (main acc)?',
             playerTagPlaceholder: '#ABC123',
-            accountCountLabel: 'How Many Accounts?',
-            accountCountPlaceholder: 'e.g. 2',
-            continentLabel: 'Which Continent are you from?',
-            continentPlaceholder: 'Europe'
+            accountCountLabel: 'How many accounts do you have?',
+            accountCountPlaceholder: 'Choose your account count',
+            continentLabel: 'Which continent are you from?',
+            continentPlaceholder: 'Choose your continent'
         },
 
         application: {
@@ -86,6 +101,7 @@ const appConfig = {
             genericErrorMessage: 'Something went wrong while submitting your application.',
             staffOnlyButtonMessage: 'This button is staff only.',
 
+            // Labels used in the application embed
             fields: {
                 applicant: 'Applicant',
                 playerName: 'Player Name',
@@ -104,10 +120,72 @@ const appConfig = {
             titlePrefix: 'Clan Recommendation:',
             introPrefix: 'We think',
             introSuffix: 'is the best fit for you.',
-            reasonLabel: 'Why this clan fits:',
             linkLabel: 'Clan Link:',
             recommendedByPrefix: 'Recommended by'
-        }
+        },
+
+        accountCountOptions: {
+            '1': {
+                label: '1',
+                description: 'One account',
+                roleId: '1445712029393617089'
+            },
+            '2': {
+                label: '2',
+                description: 'Two accounts',
+                roleId: '1445712054877950013'
+            },
+            '3plus': {
+                label: '3+',
+                description: 'Three or more accounts',
+                roleId: '1445712087123890176'
+            }
+        },
+
+        continentOptions: {
+            europe: {
+                label: 'Europe',
+                description: 'Europe',
+                roleId: '1445711595866161304'
+            },
+            north_america: {
+                label: 'North America',
+                description: 'North America',
+                roleId: '1445711630997655736'
+            },
+            south_america: {
+                label: 'South America',
+                description: 'South America',
+                roleId: '1445711668213710920'
+            },
+            asia: {
+                label: 'Asia',
+                description: 'Asia',
+                roleId: '1445711704146313236'
+            },
+            oceania: {
+                label: 'Oceania',
+                description: 'Oceania',
+                roleId: '1445711757879541852'
+            },
+            africa: {
+                label: 'Africa',
+                description: 'Africa',
+                roleId: '1445711726816268299'
+            }
+        },
+
+        townHallRoles: {
+            12: '1445711841916354650',
+            13: '1445711872551550976',
+            14: '1445711890037735504',
+            15: '1445711915572662292',
+            16: '1445711936711819336',
+            17: '1445711967309402145',
+            18: '1445711989329625171'
+        },
+
+        roleUpdateReason: 'Join clan application role update'
     },
 
     // Clan options shown in the recommendation menu
@@ -115,26 +193,22 @@ const appConfig = {
         hyper_gizards: {
             name: 'Hyper Gizards',
             description: 'Recommend Hyper Gizards',
-            link: '(LINK)',
-            explanation: '(EXPLANATION)'
+            link: 'https://link.clashofclans.com/en?action=OpenClanProfile&tag=2Q0YGUP08'
         },
         turtle: {
             name: 'TURTLE',
             description: 'Recommend TURTLE',
-            link: '(LINK)',
-            explanation: '(EXPLANATION)'
+            link: 'https://link.clashofclans.com/en/?action=OpenClanProfile&tag=8L28LJCC'
         },
         purple_turtle: {
             name: 'Purple Turtle',
             description: 'Recommend Purple Turtle',
-            link: '(LINK)',
-            explanation: '(EXPLANATION)'
+            link: 'https://link.clashofclans.com/en/?action=OpenClanProfile&tag=2JJ9UG82C'
         },
         turtle_cwl: {
             name: 'Turtle CWL',
             description: 'Recommend Turtle CWL',
-            link: '(LINK)',
-            explanation: '(EXPLANATION)'
+            link: 'https://link.clashofclans.com/en?action=OpenClanProfile&tag=2JPY2LPQ2'
         }
     }
 };

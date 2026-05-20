@@ -13,11 +13,14 @@ module.exports = async function handleTicketCreate(channel) {
             setTimeout(resolve, appConfig.ticketCreate.initialFetchDelayMs)
         );
 
-        channel = await channel.fetch();
+        channel = await channel.fetch().catch(() => null);
+        if (!channel) return;
 
         if (channel.parentId !== appConfig.ticket.openCategoryId) return;
 
-        const messages = await channel.messages.fetch({ limit: 10 });
+        const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+        if (!messages || messages.size === 0) return;
+
         const sorted = [...messages.values()].sort(
             (a, b) => a.createdTimestamp - b.createdTimestamp
         );
@@ -33,17 +36,21 @@ module.exports = async function handleTicketCreate(channel) {
                 continue;
             }
 
+            const fullText = getMessageText(msg);
+            const detectedType = detectTicketType(fullText);
             const mentionedUser = msg.mentions.users.first();
+
             if (mentionedUser) {
                 opener = mentionedUser;
-                ticketType = detectTicketType(getMessageText(msg));
+                ticketType = detectedType;
                 break;
             }
         }
 
         if (!opener) return;
 
-        const newName = `${ticketType}-${cleanName(opener.username)}`;
+        const safeUsername = cleanName(opener.username) || 'user';
+        const newName = `${ticketType}-${safeUsername}`;
 
         if (channel.name !== newName) {
             await channel.setName(newName);

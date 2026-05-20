@@ -1,9 +1,9 @@
-const { TICKET_TOOL_BOT_ID } = require('./ticketConfig');
+const appConfig = require('../../config/appConfig');
 
 function getMessageText(message) {
     let text = message.content || '';
 
-    for (const embed of message.embeds) {
+    for (const embed of message.embeds ?? []) {
         if (embed.title) text += ` ${embed.title}`;
         if (embed.description) text += ` ${embed.description}`;
 
@@ -13,6 +13,9 @@ function getMessageText(message) {
                 if (field.value) text += ` ${field.value}`;
             }
         }
+
+        if (embed.footer?.text) text += ` ${embed.footer.text}`;
+        if (embed.author?.name) text += ` ${embed.author.name}`;
     }
 
     return text.trim();
@@ -21,10 +24,12 @@ function getMessageText(message) {
 function detectTicketType(text) {
     const lower = text.toLowerCase();
 
-    if (lower.includes('join clan')) return 'join-clan';
-    if (lower.includes('other reasons')) return 'other-reasons';
+    if (lower.includes('topic: new member')) return 'join-clan';
+    if (lower.includes('topic: general support')) return 'general-support';
+    if (lower.includes('topic: partnership')) return 'partnership';
+    if (lower.includes('topic: claim reward')) return 'claim-reward';
 
-    return 'ticket';
+    return appConfig.ticketCreate.defaultTicketType;
 }
 
 async function findTicketOpener(channel) {
@@ -41,12 +46,17 @@ async function findTicketOpener(channel) {
         const sorted = [...messages.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp);
 
         for (const msg of sorted) {
-            if (TICKET_TOOL_BOT_ID && msg.author.id !== TICKET_TOOL_BOT_ID) continue;
+            if (
+                appConfig.ticket.ticketToolBotId &&
+                msg.author.id !== appConfig.ticket.ticketToolBotId
+            ) {
+                continue;
+            }
 
             const text = getMessageText(msg).toLowerCase();
             const mentionedUser = msg.mentions.users.first();
 
-            if (mentionedUser && text.includes('welcome')) {
+            if (mentionedUser) {
                 return mentionedUser;
             }
         }

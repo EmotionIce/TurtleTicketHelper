@@ -2,52 +2,74 @@ const {
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    ActionRowBuilder
+    StringSelectMenuBuilder,
+    StringSelectMenuOptionBuilder,
+    LabelBuilder
 } = require('discord.js');
-
 const appConfig = require('../../config/appConfig');
 
 module.exports = async function handleJoinClanButton(interaction) {
-    try {
-        if (interaction.customId !== 'join_clan_apply') return;
+    if (!interaction.isButton()) return false;
+    if (interaction.customId !== 'join_clan_apply') return false;
 
-        const modal = new ModalBuilder()
-            .setCustomId('join_clan_application_modal')
-            .setTitle(appConfig.joinClan.modal.title);
+    const modalConfig = appConfig.joinClan.modal;
+    const accountCountOptions = appConfig.joinClan.accountCountOptions || {};
+    const continentOptions = appConfig.joinClan.continentOptions || {};
 
-        const playerTagInput = new TextInputBuilder()
-            .setCustomId('player_tag')
-            .setLabel(appConfig.joinClan.modal.playerTagLabel)
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder(appConfig.joinClan.modal.playerTagPlaceholder)
-            .setRequired(true)
-            .setMinLength(3)
-            .setMaxLength(20);
+    const modal = new ModalBuilder()
+        .setCustomId('join_clan_application_modal')
+        .setTitle(modalConfig.title);
 
-        const accountsInput = new TextInputBuilder()
-            .setCustomId('account_count')
-            .setLabel(appConfig.joinClan.modal.accountCountLabel)
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder(appConfig.joinClan.modal.accountCountPlaceholder)
-            .setRequired(true)
-            .setMaxLength(20);
+    const playerTagInput = new TextInputBuilder()
+        .setCustomId('player_tag')
+        .setPlaceholder(modalConfig.playerTagPlaceholder)
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setMinLength(3)
+        .setMaxLength(15);
 
-        const continentInput = new TextInputBuilder()
-            .setCustomId('continent')
-            .setLabel(appConfig.joinClan.modal.continentLabel)
-            .setStyle(TextInputStyle.Short)
-            .setPlaceholder(appConfig.joinClan.modal.continentPlaceholder)
-            .setRequired(true)
-            .setMaxLength(50);
-
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(playerTagInput),
-            new ActionRowBuilder().addComponents(accountsInput),
-            new ActionRowBuilder().addComponents(continentInput)
+    const accountCountSelect = new StringSelectMenuBuilder()
+        .setCustomId('account_count')
+        .setPlaceholder(modalConfig.accountCountPlaceholder)
+        .setMinValues(1)
+        .setMaxValues(1)
+        .addOptions(
+            Object.entries(accountCountOptions).map(([value, option]) =>
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(option.label)
+                    .setDescription(option.description)
+                    .setValue(value)
+            )
         );
 
-        await interaction.showModal(modal);
-    } catch (error) {
-        console.error('Join Clan button failed:', error);
-    }
+    const continentSelect = new StringSelectMenuBuilder()
+        .setCustomId('continent')
+        .setPlaceholder(modalConfig.continentPlaceholder)
+        .setMinValues(1)
+        .setMaxValues(1)
+        .addOptions(
+            Object.entries(continentOptions).map(([value, option]) =>
+                new StringSelectMenuOptionBuilder()
+                    .setLabel(option.label)
+                    .setDescription(option.description)
+                    .setValue(value)
+            )
+        );
+
+    modal.addLabelComponents(
+        new LabelBuilder()
+            .setLabel(modalConfig.playerTagLabel)
+            .setTextInputComponent(playerTagInput),
+
+        new LabelBuilder()
+            .setLabel(modalConfig.accountCountLabel)
+            .setStringSelectMenuComponent(accountCountSelect),
+
+        new LabelBuilder()
+            .setLabel(modalConfig.continentLabel)
+            .setStringSelectMenuComponent(continentSelect)
+    );
+
+    await interaction.showModal(modal);
+    return true;
 };

@@ -1,7 +1,17 @@
 require('dotenv').config();
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, Partials } = require('discord.js');
+
+process.on('unhandledRejection', (error) => {
+  console.error('UNHANDLED REJECTION:', error);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('UNCAUGHT EXCEPTION:', error);
+});
+
+console.log('INDEX STARTED');
 
 const client = new Client({
   intents: [
@@ -11,6 +21,31 @@ const client = new Client({
   ],
   partials: [Partials.Channel]
 });
+
+client.commands = new Collection();
+
+const commandsPath = path.join(__dirname, 'commands');
+if (fs.existsSync(commandsPath)) {
+  const commandFolders = fs.readdirSync(commandsPath);
+
+  for (const folder of commandFolders) {
+    const folderPath = path.join(commandsPath, folder);
+    if (!fs.statSync(folderPath).isDirectory()) continue;
+
+    const commandFiles = fs.readdirSync(folderPath).filter(file => file.endsWith('.js'));
+
+    for (const file of commandFiles) {
+      const filePath = path.join(folderPath, file);
+      const command = require(filePath);
+
+      if (command && command.data && command.execute) {
+        client.commands.set(command.data.name, command);
+      } else {
+        console.warn(`Command at ${filePath} is missing "data" or "execute".`);
+      }
+    }
+  }
+}
 
 const eventsPath = path.join(__dirname, 'events');
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));

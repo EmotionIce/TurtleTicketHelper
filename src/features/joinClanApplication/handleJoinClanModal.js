@@ -8,25 +8,78 @@ const { fetchPlayerData, normalizePlayerTag } = require('./fetchPlayerData');
 const syncDiscordUsernameForPlayerTag = require('./syncDiscordUsernameForPlayerTag');
 const appConfig = require('../../config/appConfig');
 
+function buildPlayerProfileLink(playerTag) {
+    const cleanTag = String(playerTag || '')
+        .trim()
+        .toUpperCase()
+        .replace('#', '');
+
+    return `https://link.clashofclans.com/en/?action=OpenPlayerProfile&tag=${cleanTag}`;
+}
+
+async function updateGroupedRoles(member, roleIdsToClear, roleIdToAdd, reason) {
+    const clearIds = roleIdsToClear.filter(Boolean);
+    const addId = roleIdToAdd || null;
+
+    if (clearIds.length > 0) {
+        const idsToRemove = clearIds.filter(roleId => member.roles.cache.has(roleId));
+        if (idsToRemove.length > 0) {
+            await member.roles.remove(idsToRemove, reason);
+        }
+    }
+
+    if (addId && !member.roles.cache.has(addId)) {
+        await member.roles.add(addId, reason);
+    }
+}
+
+async function applyJoinClanRoles(member, accountCountKey, continentKey, townHallLevel) {
+    const joinClanConfig = appConfig.joinClan || {};
+    const accountCountOptions = joinClanConfig.accountCountOptions || {};
+    const continentOptions = joinClanConfig.continentOptions || {};
+    const townHallRoles = joinClanConfig.townHallRoles || {};
+    const reason = joinClanConfig.roleUpdateReason || 'Join clan application role update';
+
+    const accountRoleIds = Object.values(accountCountOptions)
+        .map(option => option.roleId)
+        .filter(Boolean);
+
+    const continentRoleIds = Object.values(continentOptions)
+        .map(option => option.roleId)
+        .filter(Boolean);
+
+    const townHallRoleIds = Object.values(townHallRoles)
+        .filter(Boolean);
+
+    const selectedAccountRoleId = accountCountOptions[accountCountKey]?.roleId || null;
+    const selectedContinentRoleId = continentOptions[continentKey]?.roleId || null;
+    const selectedTownHallRoleId = townHallRoles[String(townHallLevel)] || null;
+
+    await updateGroupedRoles(member, accountRoleIds, selectedAccountRoleId, reason);
+    await updateGroupedRoles(member, continentRoleIds, selectedContinentRoleId, reason);
+    await updateGroupedRoles(member, townHallRoleIds, selectedTownHallRoleId, reason);
+}
+
 module.exports = async function handleJoinClanModal(interaction) {
     try {
         if (interaction.customId !== 'join_clan_application_modal') return;
 
         const rawPlayerTag = interaction.fields.getTextInputValue('player_tag').trim();
-        const accountCount = interaction.fields.getTextInputValue('account_count').trim();
-        const continent = interaction.fields.getTextInputValue('continent').trim();
+        const accountCount = interaction.fields.getStringSelectValues('account_count')[0];
+        const continent = interaction.fields.getStringSelectValues('continent')[0];
 
         await interaction.deferReply({ flags: 64 });
 
         const normalizedTag = normalizePlayerTag(rawPlayerTag);
         const playerData = await fetchPlayerData(normalizedTag);
+        const playerProfileLink = buildPlayerProfileLink(playerData.tag ?? normalizedTag);
 
         void syncDiscordUsernameForPlayerTag(
             playerData.tag || normalizedTag,
             interaction.user.username
         );
 
-        const { colors, application, recommendationMenu, prompt } = appConfig.joinClan;
+        const { colors, application, recommendationMenu } = appConfig.joinClan;
         const fields = application.fields;
 
         const embed = new EmbedBuilder()
@@ -52,8 +105,8 @@ module.exports = async function handleJoinClanModal(interaction) {
                 },
                 {
                     name: fields.playerTag,
-                    value: `\`${playerData.tag ?? normalizedTag}\``,
-                    inline: true
+                    value: `\`${playerData.tag ?? normalizedTag}\`\n[Open In-Game](${playerProfileLink})`,
+                    inline: false
                 },
                 {
                     name: fields.townHall,
@@ -72,12 +125,12 @@ module.exports = async function handleJoinClanModal(interaction) {
                 },
                 {
                     name: fields.accounts,
-                    value: String(accountCount || 'Unknown'),
+                    value: appConfig.joinClan.accountCountOptions[accountCount]?.label || 'Unknown',
                     inline: true
                 },
                 {
                     name: fields.continent,
-                    value: String(continent || 'Unknown'),
+                    value: appConfig.joinClan.continentOptions[continent]?.label || 'Unknown',
                     inline: true
                 },
                 {
@@ -110,18 +163,13 @@ module.exports = async function handleJoinClanModal(interaction) {
             components: [applicationRow]
         });
 
-        const disabledRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('join_clan_apply')
-                .setLabel(application.submittedButtonLabel)
-                .setStyle(ButtonStyle.Secondary)
-                .setDisabled(true)
-        );
-
-        if (interaction.message) {
-            await interaction.message.edit({
-                components: [disabledRow]
-            });
+        if (interaction.member && interaction.member.roles) {
+            await applyJoinClanRoles(
+                interaction.member,
+                accountCount,
+                continent,
+                playerData.townHallLevel
+            );
         }
 
         await interaction.editReply({
