@@ -51,13 +51,38 @@ function getScoreLabel(row, fallbackAccount, type) {
         return String(explicit);
     }
 
+    if (type === 'push') {
+        const leagueLabel =
+            row?.bestLeagueName ||
+            row?.bestLeagueLabel ||
+            row?.leagueName ||
+            row?.leagueLabel ||
+            fallbackAccount?.bestLeagueName ||
+            fallbackAccount?.bestLeagueLabel ||
+            fallbackAccount?.leagueName ||
+            fallbackAccount?.leagueLabel ||
+            '';
+        const trophies =
+            row?.bestTrophies ??
+            row?.score ??
+            row?.value ??
+            fallbackAccount?.bestTrophies ??
+            fallbackAccount?.score ??
+            fallbackAccount?.trophies ??
+            null;
+
+        if (trophies !== null && trophies !== undefined && trophies !== '') {
+            const trophyLabel = `${formatNumber(trophies)} trophies`;
+
+            return leagueLabel ? `${leagueLabel} - ${trophyLabel}` : trophyLabel;
+        }
+    }
+
     const rawValue =
         row?.score ??
-        row?.metric ??
         row?.value ??
         row?.total ??
         fallbackAccount?.score ??
-        fallbackAccount?.metric ??
         fallbackAccount?.trophies ??
         null;
 
@@ -68,16 +93,58 @@ function getScoreLabel(row, fallbackAccount, type) {
     return 'pending';
 }
 
-function getLeaderboardFallbackRows(leaderboard) {
+function getLeaderboardFallbackRows(leaderboard, type) {
     return extractLeaderboardRows(leaderboard).map(row => ({
+        rank: row?.rank || null,
         tag: normalizePlayerTag(row?.playerTag || row?.tag || row?.accountTag || row?.account?.tag || ''),
         townHall: row?.townHallLevel || row?.townHall || row?.th || row?.account?.townHallLevel || null,
-        scoreLabel: getScoreLabel(row, null, null),
-        name: row?.playerName || row?.name || row?.accountName || row?.account?.name || 'Unknown'
+        score: row?.score ?? row?.value ?? row?.total ?? null,
+        scoreLabel: getScoreLabel(row, null, type),
+        leagueTierId:
+            row?.leagueTierId ||
+            row?.leagueTierID ||
+            row?.bestLeagueTierId ||
+            row?.bestLeagueTierID ||
+            row?.leagueTier?.id ||
+            row?.bestLeagueTier?.id ||
+            row?.account?.leagueTier?.id ||
+            null,
+        leagueBucket:
+            row?.leagueBucket ??
+            row?.bestLeagueBucket ??
+            row?.rankTier ??
+            row?.tier ??
+            null,
+        leagueName:
+            row?.bestLeagueName ||
+            row?.bestLeagueLabel ||
+            row?.leagueName ||
+            row?.leagueLabel ||
+            row?.account?.leagueName ||
+            row?.account?.leagueLabel ||
+            '',
+        bestLeagueName: row?.bestLeagueName || '',
+        bestLeagueLabel: row?.bestLeagueLabel || '',
+        bestTrophies: row?.bestTrophies ?? null,
+        currentTrophies: row?.currentTrophies ?? null,
+        trophies: row?.trophies ?? null,
+        name:
+            row?.displayName ||
+            row?.playerName ||
+            row?.name ||
+            row?.accountName ||
+            row?.account?.name ||
+            'Unknown'
     }));
 }
 
 function buildAllConfirmedRows(event, leaderboard, type) {
+    const leaderboardRows = getLeaderboardFallbackRows(leaderboard, type);
+
+    if (type === 'push' && leaderboardRows.length > 0) {
+        return leaderboardRows;
+    }
+
     const rowsByTag = getLeaderboardRowsByTag(leaderboard);
     const activeParticipants = getActiveParticipants(event);
     const rows = [];
@@ -86,19 +153,240 @@ function buildAllConfirmedRows(event, leaderboard, type) {
         for (const account of getAccountRowsForParticipant(participant)) {
             const leaderboardRow = account.tag ? rowsByTag.get(account.tag) : null;
             rows.push({
+                rank: leaderboardRow?.rank || null,
                 tag: account.tag,
                 townHall: account.townHall,
+                score: leaderboardRow?.score ?? leaderboardRow?.value ?? leaderboardRow?.total ?? null,
                 scoreLabel: getScoreLabel(leaderboardRow, account, type),
+                leagueTierId:
+                    leaderboardRow?.leagueTierId ||
+                    leaderboardRow?.leagueTierID ||
+                    leaderboardRow?.bestLeagueTierId ||
+                    leaderboardRow?.bestLeagueTierID ||
+                    leaderboardRow?.leagueTier?.id ||
+                    leaderboardRow?.bestLeagueTier?.id ||
+                    account?.leagueTierId ||
+                    account?.leagueTier?.id ||
+                    null,
+                leagueBucket:
+                    leaderboardRow?.leagueBucket ??
+                    leaderboardRow?.bestLeagueBucket ??
+                    leaderboardRow?.rankTier ??
+                    leaderboardRow?.tier ??
+                    null,
+                leagueName:
+                    leaderboardRow?.bestLeagueName ||
+                    leaderboardRow?.bestLeagueLabel ||
+                    leaderboardRow?.leagueName ||
+                    leaderboardRow?.leagueLabel ||
+                    account?.leagueName ||
+                    '',
+                bestLeagueName: leaderboardRow?.bestLeagueName || '',
+                bestLeagueLabel: leaderboardRow?.bestLeagueLabel || '',
+                bestTrophies: leaderboardRow?.bestTrophies ?? leaderboardRow?.currentTrophies ?? null,
+                currentTrophies: leaderboardRow?.currentTrophies ?? null,
+                trophies: leaderboardRow?.trophies ?? account?.trophies ?? null,
                 name: account.name
             });
         }
     }
 
     if (rows.length === 0) {
-        rows.push(...getLeaderboardFallbackRows(leaderboard));
+        rows.push(...leaderboardRows);
     }
 
     return rows;
+}
+
+function firstDefinedValue(values) {
+    return values.find(value => value !== null && value !== undefined && value !== '');
+}
+
+function stripMetricWords(value) {
+    return String(value ?? '')
+        .replace(/\s+(donations?|trophies?)\b/gi, '')
+        .trim();
+}
+
+function getDonationValue(row) {
+    const raw = firstDefinedValue([
+        row?.score,
+        row?.value,
+        row?.total,
+        row?.delta,
+        row?.currentValue
+    ]);
+
+    if (raw !== undefined) {
+        return stripMetricWords(formatNumber(raw)) || '0';
+    }
+
+    return stripMetricWords(row?.scoreLabel || 'pending') || 'pending';
+}
+
+function getPushTrophies(row) {
+    const raw = firstDefinedValue([
+        row?.bestTrophies,
+        row?.currentTrophies,
+        row?.trophies,
+        row?.score,
+        row?.value,
+        row?.total
+    ]);
+
+    if (raw !== undefined) {
+        return stripMetricWords(formatNumber(raw)) || '0';
+    }
+
+    const scoreLabel = String(row?.scoreLabel || '');
+    const match = scoreLabel.match(/([\d][\d,.\s]*)\s*trophies?\b/i);
+
+    if (match) {
+        return match[1].replace(/\s+/g, '').trim();
+    }
+
+    return scoreLabel ? stripMetricWords(scoreLabel) : 'pending';
+}
+
+function getRankTierFromLeagueTierId(value) {
+    const text = String(value ?? '').trim();
+
+    if (!/^\d+$/.test(text)) {
+        return null;
+    }
+
+    const rankTier = Number(text.slice(-2));
+
+    return Number.isFinite(rankTier) && rankTier > 0 ? rankTier : null;
+}
+
+function getLeagueNameFromScoreLabel(scoreLabel) {
+    const text = String(scoreLabel || '').trim();
+
+    if (!text) {
+        return '';
+    }
+
+    return text.split(/\s+-\s+/)[0].replace(/\s+trophies?\b/gi, '').trim();
+}
+
+function romanToNumber(value) {
+    const roman = String(value || '').trim().toUpperCase();
+
+    switch (roman) {
+        case 'I':
+            return 1;
+        case 'II':
+            return 2;
+        case 'III':
+            return 3;
+        default:
+            return null;
+    }
+}
+
+function getLeagueName(row) {
+    return String(
+        row?.bestLeagueLabel ||
+        row?.bestLeagueName ||
+        row?.leagueName ||
+        row?.leagueLabel ||
+        getLeagueNameFromScoreLabel(row?.scoreLabel) ||
+        ''
+    ).trim();
+}
+
+function getLeagueTierNumber(row) {
+    const direct = Number(row?.leagueBucket ?? row?.rankTier ?? row?.tier);
+
+    if (Number.isFinite(direct) && direct > 0) {
+        return direct;
+    }
+
+    return getRankTierFromLeagueTierId(
+        row?.leagueTierId ||
+        row?.leagueTierID ||
+        row?.bestLeagueTierId ||
+        row?.bestLeagueTierID ||
+        row?.leagueTier?.id ||
+        row?.bestLeagueTier?.id
+    );
+}
+
+function getLeagueInitial(leagueName) {
+    const match = String(leagueName || '').match(/[A-Za-z]/);
+
+    return match ? match[0].toUpperCase() : '';
+}
+
+function formatLeagueShort(row) {
+    const leagueName = getLeagueName(row);
+    const rankTier = getLeagueTierNumber(row);
+    const initial = getLeagueInitial(leagueName);
+
+    if (rankTier === 34) {
+        return 'L3';
+    }
+
+    if (rankTier === 35) {
+        return 'L2';
+    }
+
+    if (rankTier === 36) {
+        return 'L1';
+    }
+
+    if (rankTier) {
+        return `${initial || 'T'}${rankTier}`;
+    }
+
+    const numberedLeague = leagueName.match(/^([A-Za-z]+)\s+(\d+)$/);
+
+    if (numberedLeague) {
+        return `${numberedLeague[1][0].toUpperCase()}${numberedLeague[2]}`;
+    }
+
+    const romanLeague = leagueName.match(/^([A-Za-z]+)\s+(I{1,3})$/i);
+    const romanTier = romanLeague ? romanToNumber(romanLeague[2]) : null;
+
+    if (romanLeague && romanTier) {
+        return `${romanLeague[1][0].toUpperCase()}${romanTier}`;
+    }
+
+    return initial || '-';
+}
+
+function formatDonationConfirmedTable(rows) {
+    const lines = [
+        '#  Donos Player'
+    ];
+
+    rows.forEach((row, index) => {
+        const rank = row.rank || index + 1;
+        const donos = truncate(getDonationValue(row), 6).padStart(6, ' ');
+        const name = truncate(row.name || row.tag || 'Unknown', 22);
+
+        lines.push(`${String(rank).padEnd(2, ' ')} ${donos} ${name}`);
+    });
+
+    return lines;
+}
+
+function formatPushConfirmedTable(rows) {
+    const lines = [
+        '#  🏆  🥇     Player'
+    ];
+
+    rows.forEach((row, index) => {
+        const rank = row.rank || index + 1;
+        const league = truncate(formatLeagueShort(row), 3).padEnd(3, ' ');
+        const trophies = truncate(getPushTrophies(row), 6).padStart(6, ' ');
+        const name = truncate(row.name || row.tag || 'Unknown', 20);
+
+        lines.push(`${String(rank).padEnd(2, ' ')} ${league} ${trophies} ${name}`);
+    });
+
+    return lines;
 }
 
 function formatConfirmedTable(rows, type) {
@@ -106,21 +394,9 @@ function formatConfirmedTable(rows, type) {
         return 'No confirmed signups yet.';
     }
 
-    const typeConfig = getEventTypeConfig(type);
-    const metric = truncate(typeConfig?.metricLabel || 'Score', 10).padEnd(10, ' ');
-    const lines = [
-        `#  TH    ${metric} Player`
-    ];
-
-    rows.forEach((row, index) => {
-        const th = row.townHall ? `TH${row.townHall}` : '-';
-        const score = truncate(row.scoreLabel || 'pending', 10).padEnd(10, ' ');
-        const name = truncate(row.name || row.tag || 'Unknown', 24);
-
-        lines.push(
-            `${String(index + 1).padEnd(2, ' ')} ${th.padEnd(5, ' ')} ${score} ${name}`
-        );
-    });
+    const lines = type === 'donation'
+        ? formatDonationConfirmedTable(rows)
+        : formatPushConfirmedTable(rows);
 
     return `\`\`\`text\n${lines.join('\n')}\n\`\`\``;
 }
